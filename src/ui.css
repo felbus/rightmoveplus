@@ -90,7 +90,7 @@
   color: var(--rmx-accent-ink);
 }
 
-/* Land in acres, on the grid cards and in the gallery. */
+/* Land in acres and style (open plan, modern), on the grid cards and in the gallery. */
 .rmx-acres {
   padding: 2px 9px;
   border-radius: 999px;

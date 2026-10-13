@@ -182,7 +182,7 @@ html.rmx-grid-on .wrapper:has(#l-searchResults) {
 .rmx-facts__tenure {
   color: var(--rmx-muted);
 }
-/* Land (acres) and Agent. */
+/* Land (acres), Style and Agent. */
 .rmx-card__row {
   display: flex;
   flex-wrap: wrap;

@@ -244,7 +244,7 @@
   }
 
   // Above the photos: the estate agent, the land in acres, and whether the listing says open
-  // plan or modern.
+  // plan or modern (Style), as on the grid cards.
   function galleryInfo(pd, listing) {
     if (!pd && !listing) return null;
     const field = (label, value) =>
@@ -253,13 +253,7 @@
     return h('div', { class: 'rmx-gallery__info' },
       agent && field('Agent', h('strong', null, agent)),
       field('Land', acresBadges(RMX.propertyAcres(pd, listing))),
-      RMX.propertyFeatures(pd, listing).map(({ name, mentions }) => field(name, mentionBadge(mentions))));
-  }
-
-  // Highlighted if the listing mentions a feature (hover for the sentences), muted if not.
-  function mentionBadge(mentions) {
-    if (!mentions.length) return h('span', { class: 'rmx-acres-none' }, 'Not mentioned');
-    return h('span', { class: 'rmx-acres', title: mentions.join('\n\n') }, 'Mentioned');
+      field('Style', featureBadges(RMX.propertyFeatures(pd, listing))));
   }
 
   const agentName = customer => customer?.branchDisplayName || customer?.companyName || customer?.brandTradingName;
@@ -272,6 +266,15 @@
     if (checking) return [h('span', { class: 'rmx-acres-none' }, 'Checking details…')];
     if (acres.length) return [h('span', { class: 'rmx-acres rmx-acres--mention', title: acres[0].context }, '“Acre” mentioned, no amount')];
     return [h('span', { class: 'rmx-acres-none' }, 'No acres mentioned')];
+  }
+
+  // Elements for the style: the features the listing mentions ("Open plan", "Modern"),
+  // highlighted (hover one for the sentences), or a note that there are none.
+  function featureBadges(features, checking) {
+    const found = features.filter(f => f.mentions.length);
+    if (found.length) return found.map(f => h('span', { class: 'rmx-acres', title: f.mentions.join('\n\n') }, f.name));
+    if (checking) return [h('span', { class: 'rmx-acres-none' }, 'Checking details…')];
+    return [h('span', { class: 'rmx-acres-none' }, 'Not mentioned')];
   }
 
   function buildGallery(pane, sets, info) {
@@ -337,5 +340,5 @@
 
   document.addEventListener('keydown', onKey, true);
 
-  Object.assign(globalThis.RMX, { TABS, h, icon, segmented, idFromHref, mediaUrl, openModal, agentName, acresBadges });
+  Object.assign(globalThis.RMX, { TABS, h, icon, segmented, idFromHref, mediaUrl, openModal, agentName, acresBadges, featureBadges });
 })();

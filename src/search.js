@@ -6,7 +6,7 @@
   // Search pages are a Next.js app; property pages are not (see property.js).
   if (window.top !== window || !document.getElementById('__NEXT_DATA__')) return;
 
-  const { TABS, h, icon, segmented, idFromHref, mediaUrl, openModal, agentName, acresBadges, propertyAcres } = RMX;
+  const { TABS, h, icon, segmented, idFromHref, mediaUrl, openModal, agentName, acresBadges, featureBadges, propertyAcres, propertyFeatures } = RMX;
 
   const VIEW_KEY = 'rmx:view';
   const SEARCH_API = '/api/property-search/listing/search';
@@ -154,8 +154,11 @@
       : null;
     const agent = agentName(p.customer);
     const land = h('div', { class: 'rmx-card__row' });
-    const showLand = (pd, checking) =>
+    const style = h('div', { class: 'rmx-card__row' });
+    const showLand = (pd, checking) => {
       land.replaceChildren(h('span', { class: 'rmx-card__label' }, 'Land'), ...acresBadges(propertyAcres(pd, p), checking));
+      style.replaceChildren(h('span', { class: 'rmx-card__label' }, 'Style'), ...featureBadges(propertyFeatures(pd, p), checking));
+    };
     showLand(null, true);
 
     let prefetch;
@@ -190,6 +193,7 @@
           p.displaySize && h('li', null, icon('size'), p.displaySize),
           tenure && h('li', { class: 'rmx-facts__tenure' }, tenure)),
         land,
+        style,
         agent && h('div', { class: 'rmx-card__row rmx-card__agent', title: agent },
           h('span', { class: 'rmx-card__label' }, 'Agent'), h('span', null, agent)),
         h('div', { class: 'rmx-card__meta' }, update)),
@@ -199,10 +203,10 @@
     return el;
   }
 
-  // Acres on the cards. The search result's key features and summary are read straight away;
-  // the full description is on the property page, fetched a few at a time as cards come near
-  // the screen.
-  const landChecks = new WeakMap(); // card → fetches its property page and shows the acres
+  // Acres and style on the cards. The search result's key features and summary are read
+  // straight away; the full description is on the property page, fetched a few at a time as
+  // cards come near the screen.
+  const landChecks = new WeakMap(); // card → fetches its property page and shows the acres and style
   const landQueue = [];
   let landFetches = 0;
   const landObserver = new IntersectionObserver(entries => {
