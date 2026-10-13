@@ -22,8 +22,6 @@
     list: '<path d="M4 5h16M4 12h16M4 19h16"/>',
     external: '<path d="M14 4h6v6M20 4l-9 9M18 14v6H4V6h6"/>',
     close: '<path d="M6 6l12 12M18 6L6 18"/>',
-    prev: '<path d="M15 5l-7 7 7 7"/>',
-    next: '<path d="M9 5l7 7-7 7"/>',
   };
 
   const TABS = [
@@ -119,9 +117,9 @@
     modal.photo = photo || null;
     document.documentElement.classList.add('rmx-modal-open');
     modal.el.hidden = false;
+    modal.el.querySelector('.rmx-modal__panel').focus();
     showTab(tab);
     if (photo) modal.gallery?.go(photo);
-    modal.el.querySelector('.rmx-modal__panel').focus();
   }
 
   function closeModal() {
@@ -170,6 +168,7 @@
       PANES[tab](pane, modal.id);
     }
     for (const [name, pane] of Object.entries(modal.panes)) pane.hidden = name !== tab;
+    if (tab === 'gallery') modal.gallery?.focus();
   }
 
   function onKey(e) {
@@ -227,33 +226,32 @@
     pane.append(loader());
     RMX.fetchProperty(id)
       .then(pd => [pd, {
-        photos: (pd.images || []).map(i => ({ src: i.url, thumb: mediaUrl(i.url, '296x197'), caption: i.caption })),
-        plans: (pd.floorplans || []).filter(f => f.url).map(f => ({ src: f.url, thumb: mediaUrl(f.url, '296x197'), caption: f.caption })),
+        photos: (pd.images || []).map(i => ({ src: i.url, caption: i.caption })),
+        plans: (pd.floorplans || []).filter(f => f.url).map(f => ({ src: f.url, caption: f.caption })),
       }])
       .catch(() => [null, { // fall back to the photos in the search results
-        photos: (modal.listing?.images || []).map(i => ({ src: mediaUrl(i.url), thumb: mediaUrl(i.url, '296x197'), caption: i.caption })),
+        photos: (modal.listing?.images || []).map(i => ({ src: mediaUrl(i.url), caption: i.caption })),
         plans: [],
       }])
       .then(([pd, sets]) => {
         if (modal.id !== id) return;
         pane.replaceChildren();
-        const info = galleryInfo(pd, modal.listing);
-        if (!sets.photos.length && !sets.plans.length) pane.append(h('div', { class: 'rmx-gallery' }, info, notice('No photos for this property.')));
-        else buildGallery(pane, sets, info);
+        buildGallery(pane, sets, galleryInfo(pd, modal.listing));
       });
   }
 
   // Above the photos: the estate agent, the land in acres, and whether the listing says open
   // plan or modern (Style), as on the grid cards.
   function galleryInfo(pd, listing) {
-    if (!pd && !listing) return null;
+    if (!pd && !listing) return [];
     const field = (label, value) =>
       h('div', { class: 'rmx-gallery__field' }, h('span', { class: 'rmx-gallery__label' }, label), value);
     const agent = agentName(pd?.customer || listing?.customer);
-    return h('div', { class: 'rmx-gallery__info' },
+    return [
       agent && field('Agent', h('strong', null, agent)),
       field('Land', acresBadges(RMX.propertyAcres(pd, listing))),
-      field('Style', featureBadges(RMX.propertyFeatures(pd, listing))));
+      field('Style', featureBadges(RMX.propertyFeatures(pd, listing))),
+    ];
   }
 
   const agentName = customer => customer?.branchDisplayName || customer?.companyName || customer?.brandTradingName;
@@ -277,65 +275,63 @@
     return [h('span', { class: 'rmx-acres-none' }, 'Not mentioned')];
   }
 
+  // Every photo, then the floorplans, in one column that scrolls. `info` goes in the strip
+  // above it.
   function buildGallery(pane, sets, info) {
-    let items = [];
-    let index = 0;
-    const img = h('img', { class: 'rmx-gallery__img', alt: '', onclick: () => step(1) });
-    const counter = h('div', { class: 'rmx-gallery__counter' });
-    const caption = h('div', { class: 'rmx-gallery__caption' });
-    const stage = h('div', { class: 'rmx-gallery__stage' },
-      img, counter, caption,
-      h('button', { class: 'rmx-gallery__nav rmx-gallery__nav--prev', type: 'button', 'aria-label': 'Previous photo', onclick: () => step(-1) }, icon('prev')),
-      h('button', { class: 'rmx-gallery__nav rmx-gallery__nav--next', type: 'button', 'aria-label': 'Next photo', onclick: () => step(1) }, icon('next')));
-    const thumbs = h('div', { class: 'rmx-gallery__thumbs' });
-    thumbs.addEventListener('click', e => {
-      const t = e.target.closest('[data-index]');
-      if (t) show(Number(t.dataset.index));
+    const shots = [];
+    const shotsOf = (set, items) => items.map((item, i) => {
+      const caption = item.caption && !/^picture no\.?\s*\d+$|\.(jpe?g|png|gif|webp|heic)$/i.test(item.caption.trim()) && item.caption;
+      const shot = h('figure', { class: `rmx-shot${set === 'plans' ? ' is-plan' : ''}`, 'data-set': set, 'data-index': i },
+        h('img', { src: item.src, alt: caption || '', loading: 'lazy', decoding: 'async' }),
+        h('span', { class: 'rmx-gallery__counter' }, `${i + 1} / ${items.length}`),
+        caption && h('figcaption', { class: 'rmx-gallery__caption' }, caption));
+      shots.push(shot);
+      return shot;
     });
+    const photos = shotsOf('photos', sets.photos);
+    const plans = shotsOf('plans', sets.plans);
+    const plansLabel = plans.length > 1 ? 'Floorplans' : 'Floorplan';
+    const plansHeading = plans.length > 0 && h('div', { class: 'rmx-gallery__heading' }, plansLabel);
 
-    const setOptions = [];
-    if (sets.photos.length) setOptions.push(['photos', `Photos ${sets.photos.length}`, 'gallery']);
-    if (sets.plans.length) setOptions.push(['plans', `Floorplans ${sets.plans.length}`, 'plan']);
-    const switcher = setOptions.length > 1 && segmented(setOptions, setOptions[0][0], name => useSet(name));
+    const scroller = h('div', { class: 'rmx-gallery__scroll', tabindex: '-1' },
+      shots.length
+        ? h('div', { class: 'rmx-gallery__feed' }, photos, plansHeading, plans)
+        : notice('No photos for this property.'));
+    const reveal = (el, behavior = 'smooth') => scroller.scrollTo({ top: el.offsetTop - 16, behavior });
+    const jump = (label, iconName, onclick) =>
+      h('button', { class: 'rmx-gallery__jump', type: 'button', onclick }, icon(iconName), label);
 
-    function useSet(name, start = 0) {
-      items = sets[name];
-      stage.classList.toggle('is-plan', name === 'plans');
-      thumbs.replaceChildren(...items.map((item, i) =>
-        h('button', { class: 'rmx-thumb', type: 'button', 'data-index': i, 'aria-label': `Photo ${i + 1}` },
-          h('img', { src: item.thumb, alt: '', loading: 'lazy' }))));
-      show(start);
-    }
-
-    function show(i) {
-      index = (i + items.length) % items.length;
-      const item = items[index];
-      img.src = item.src;
-      counter.textContent = `${index + 1} / ${items.length}`;
-      caption.textContent = item.caption && !/^picture no\.?\s*\d+$/i.test(item.caption) ? item.caption : '';
-      caption.hidden = !caption.textContent;
-      for (const t of thumbs.children) t.setAttribute('aria-current', String(Number(t.dataset.index) === index));
-      thumbs.children[index]?.scrollIntoView({ block: 'nearest', inline: 'center', behavior: 'smooth' });
-      for (const n of [index + 1, index - 1]) new Image().src = items[(n + items.length) % items.length].src;
-    }
-
+    // ← → scroll a photo at a time. `aim` is where a scroll is heading, so quick presses add up.
+    let aim = -1;
+    scroller.addEventListener('scrollend', () => { aim = -1; });
     function step(delta) {
-      show(index + delta);
+      if (!shots.length) return;
+      const from = aim >= 0 ? aim : shots.findLastIndex(s => s.offsetTop <= scroller.scrollTop + 20);
+      aim = Math.min(Math.max(from + delta, 0), shots.length - 1);
+      reveal(shots[aim]);
     }
 
     // Jumps to a photo or floorplan, e.g. one clicked on the page behind the modal.
-    function go({ set, index: start = 0 } = {}) {
-      if (!sets[set]?.length) [set, start] = [setOptions[0][0], 0];
-      if (switcher) for (const b of switcher.children) b.setAttribute('aria-pressed', String(b.dataset.value === set));
-      useSet(set, start);
+    function go({ set, index = 0 } = {}) {
+      const shot = shots.find(s => s.dataset.set === set && Number(s.dataset.index) === index);
+      aim = -1;
+      if (shot) reveal(shot, 'instant');
+      else scroller.scrollTop = 0;
     }
 
+    // With focus in the column, ↑ ↓, Page Up/Down and Space scroll it.
+    const focus = () => scroller.focus({ preventScroll: true });
+
     pane.append(h('div', { class: 'rmx-gallery' },
-      info,
-      stage,
-      h('div', { class: 'rmx-gallery__bar' }, switcher, thumbs)));
-    modal.gallery = { step, go };
+      h('div', { class: 'rmx-gallery__info' },
+        info,
+        photos.length > 0 && plans.length > 0 && h('div', { class: 'rmx-gallery__jumps' },
+          jump(`Photos ${photos.length}`, 'gallery', () => reveal(photos[0])),
+          jump(`${plansLabel} ${plans.length}`, 'plan', () => reveal(plansHeading)))),
+      scroller));
+    modal.gallery = { step, go, focus };
     go(modal.photo || {});
+    if (modal.tab === 'gallery' && modal.el.contains(document.activeElement)) focus();
   }
 
   document.addEventListener('keydown', onKey, true);

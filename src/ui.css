@@ -297,7 +297,7 @@ html.rmx-modal-open body {
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.18);
 }
 
-/* Gallery */
+/* Gallery: every photo, then the floorplans, in one column that scrolls. */
 
 .rmx-gallery {
   display: flex;
@@ -306,14 +306,11 @@ html.rmx-modal-open body {
   background: #121219;
   color: #fff;
 }
-.rmx-gallery > .rmx-notice {
-  flex: 1;
-  height: auto;
-}
 
-/* Agent and acres, above the photos. */
+/* Agent, land and style above the photos, and buttons to jump to the photos or floorplans. */
 .rmx-gallery__info {
   display: flex;
+  flex: none;
   flex-wrap: wrap;
   align-items: center;
   gap: 8px 28px;
@@ -342,50 +339,70 @@ html.rmx-modal-open body {
   color: var(--rmx-accent);
   box-shadow: inset 0 0 0 1px var(--rmx-accent);
 }
-
-.rmx-gallery__stage {
-  position: relative;
+.rmx-gallery__jumps {
   display: flex;
-  flex: 1;
+  gap: 6px;
+  margin-left: auto;
+}
+.rmx-gallery__jump {
+  display: inline-flex;
   align-items: center;
-  justify-content: center;
+  gap: 6px;
+  padding: 5px 10px;
+  border: 1px solid #3a3a48;
+  border-radius: 7px;
+  background: none;
+  color: #fff;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+.rmx-gallery__jump:hover {
+  border-color: #9a9aab;
+}
+
+.rmx-gallery__scroll {
+  position: relative; /* the photos' offsetTop is measured from here */
+  flex: 1;
   min-height: 0;
-  padding: 12px;
+  overflow-y: auto;
+  outline: none;
+  scrollbar-color: #444 transparent;
 }
-.rmx-gallery__stage.is-plan {
+.rmx-gallery__feed {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-width: 1024px;
+  margin: 0 auto;
+  padding: 16px;
+}
+.rmx-gallery__heading {
+  margin-top: 12px;
+  color: #9a9aab;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.rmx-shot {
+  position: relative;
+  margin: 0;
+  overflow: hidden;
+  border-radius: 8px;
+  background: #1c1c26;
+}
+.rmx-shot.is-plan {
   background: #fff;
 }
-.rmx-gallery__img {
-  max-width: 100%;
-  max-height: 100%;
+.rmx-shot img {
+  display: block;
+  width: 100%;
+  max-width: none;
+  height: auto;
+  max-height: calc(100vh - 200px); /* tall photos and floorplans fit in view */
+  aspect-ratio: auto 3 / 2; /* until it loads */
   object-fit: contain;
-  cursor: pointer;
-  user-select: none;
-}
-.rmx-gallery__nav {
-  position: absolute;
-  top: 50%;
-  display: grid;
-  place-items: center;
-  width: 48px;
-  height: 48px;
-  border: 0;
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.92);
-  color: var(--rmx-ink);
-  font-size: 22px;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
-  cursor: pointer;
-  transform: translateY(-50%);
-}
-.rmx-gallery__nav:hover {
-  background: #fff;
-}
-.rmx-gallery__nav--prev {
-  left: 16px;
-}
-.rmx-gallery__nav--next {
-  right: 16px;
 }
 .rmx-gallery__counter,
 .rmx-gallery__caption {
@@ -398,61 +415,17 @@ html.rmx-modal-open body {
   font-weight: 600;
 }
 .rmx-gallery__counter {
-  top: 14px;
-  left: 16px;
+  top: 10px;
+  left: 10px;
 }
 .rmx-gallery__caption {
-  bottom: 14px;
+  bottom: 10px;
   left: 50%;
   max-width: 70%;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
   transform: translateX(-50%);
-}
-
-.rmx-gallery__bar {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 10px 12px;
-  background: #0a0a10;
-}
-.rmx-gallery__bar .rmx-seg {
-  flex: none;
-}
-.rmx-gallery__thumbs {
-  display: flex;
-  flex: 1;
-  gap: 6px;
-  overflow-x: auto;
-  scrollbar-width: thin;
-  scrollbar-color: #444 transparent;
-}
-.rmx-thumb {
-  flex: none;
-  width: 104px;
-  height: 70px;
-  padding: 0;
-  overflow: hidden;
-  border: 2px solid transparent;
-  border-radius: 6px;
-  background: #222;
-  opacity: 0.55;
-  cursor: pointer;
-}
-.rmx-thumb:hover {
-  opacity: 0.85;
-}
-.rmx-thumb[aria-current="true"] {
-  border-color: var(--rmx-accent);
-  opacity: 1;
-}
-.rmx-thumb img {
-  display: block;
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
 }
 
 @media (max-width: 900px) {

@@ -3,6 +3,7 @@
 
 html:not(.rmx-grid-on) #rmx-grid,
 html.rmx-grid-on #l-searchResults > :not([class*="KeywordSearch_"]),
+html.rmx-grid-on [class*="Pagination_wrapper"], /* the grid scrolls on instead */
 html.rmx-grid-on [class*="SidebarBase_sidebarBase"] {
   display: none !important;
 }
@@ -35,6 +36,30 @@ html.rmx-grid-on .wrapper:has(#l-searchResults) {
 .rmx-grid.is-loading {
   opacity: 0.4;
   pointer-events: none;
+}
+
+/* The end of the grid, where the next page loads. */
+.rmx-more {
+  display: flex;
+  grid-column: 1 / -1;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  min-height: 56px;
+  color: var(--rmx-muted);
+  font-size: 14px;
+  text-align: center;
+}
+/* Chrome's scroll anchoring would hold whatever is in view below the cards in place as a page
+   is added above it, scrolling on to the end and loading page after page. */
+.rmx-more,
+html.rmx-grid-on #rmx-grid ~ *,
+html.rmx-grid-on :has(#rmx-grid) ~ * {
+  overflow-anchor: none;
+}
+.rmx-more .rmx-spinner {
+  width: 22px;
+  height: 22px;
 }
 
 .rmx-card {

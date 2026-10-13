@@ -22,6 +22,10 @@
     byId: new Map(),    // every property on the page, by id
     channel: initialData?.searchParameters?.channel || null,
     request: null,
+    next: null,         // index of the next page of results, if there is one
+    total: 0,           // results Rightmove says the search has
+    more: null,         // request for the next page, while it loads
+    moreFailed: false,
   };
 
   // ---------------------------------------------------------------------------
@@ -37,20 +41,25 @@
   }
 
   // Pagination and filters are client-side: the page fetches the same JSON API with the
-  // URL's query string, so we do too. The API insists on a channel.
-  function apiQuery() {
+  // URL's query string, so we do too. The API insists on a channel. `index` asks for a later
+  // page.
+  function apiQuery(index) {
     const q = new URLSearchParams(location.search);
     if (!q.has('channel')) {
       const channel = state.channel || (/to-rent/.test(location.pathname) ? 'RENT' : 'BUY');
       q.set('channel', channel);
       if (!q.has('transactionType')) q.set('transactionType', channel === 'RENT' ? 'LETTING' : 'BUY');
     }
+    if (index != null) q.set('index', index);
     return `?${q}`;
   }
 
   async function load() {
     const url = (state.url = location.href);
     state.request?.abort();
+    state.more?.abort();
+    state.more = null;
+    renderMore();
     if (url === initialUrl && initialData) {
       setResults(initialData);
       return;
@@ -80,9 +89,79 @@
     state.byId = new Map(all.map(p => [String(p.id), p]));
     state.props = all.filter(p => !p.featuredProperty);
     state.channel = data.searchParameters?.channel || state.channel;
+    state.next = data.pagination?.next ?? null;
+    state.total = Number(String(data.resultCount || 0).replace(/,/g, '')) || 0;
+    state.moreFailed = false;
     state.status = 'ready';
     renderGrid();
     sync();
+    watchMore();
+  }
+
+  // Infinite scroll: when the end of the grid comes near, the next page of results is added
+  // to it. The URL stays on the page it was on.
+  async function loadMore() {
+    if (state.status !== 'ready' || state.next == null || state.more || state.moreFailed) return;
+    const url = state.url;
+    const request = (state.more = new AbortController());
+    renderMore();
+    try {
+      const res = await fetch(SEARCH_API + apiQuery(state.next), {
+        signal: request.signal,
+        headers: { accept: 'application/json' },
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      if (state.url !== url) return;
+      const all = data.properties || [];
+      const shown = new Set(state.props.map(p => String(p.id)));
+      // Listings added since the last page can push ones already shown onto this one.
+      const added = all.filter(p => !p.featuredProperty && !shown.has(String(p.id)));
+      for (const p of all) state.byId.set(String(p.id), p);
+      state.props.push(...added);
+      state.next = data.pagination?.next ?? null;
+      more.before(...added.map(card));
+    } catch (err) {
+      if (err.name === 'AbortError' || state.url !== url) return;
+      console.warn('[Rightmove Plus] Could not load more results.', err);
+      state.moreFailed = true;
+    } finally {
+      if (state.more === request) {
+        state.more = null;
+        renderMore();
+        watchMore();
+      }
+    }
+  }
+
+  // The end of the grid: loading, a retry button, or the end of the results.
+  const more = h('div', { class: 'rmx-more' });
+  const moreObserver = new IntersectionObserver(entries => {
+    if (entries.some(e => e.isIntersecting)) loadMore();
+  }, { rootMargin: '1500px 0px' });
+  moreObserver.observe(more);
+
+  // Checks again whether the end is near: the observer only reports changes, and it may
+  // still be in view after a page has been added.
+  function watchMore() {
+    moreObserver.unobserve(more);
+    moreObserver.observe(more);
+  }
+
+  function renderMore() {
+    const n = count => count.toLocaleString('en-GB');
+    if (state.more) {
+      more.replaceChildren(h('span', { class: 'rmx-spinner' }), 'Loading more properties…');
+    } else if (state.moreFailed) {
+      more.replaceChildren('Couldn’t load more properties.',
+        h('button', { class: 'rmx-btn', type: 'button', onclick: () => { state.moreFailed = false; loadMore(); } }, 'Try again'));
+    } else if (state.next != null) {
+      more.replaceChildren();
+    } else if (state.total > state.props.length + 25) { // Rightmove stops after 42 pages
+      more.replaceChildren(`Showing the first ${n(state.props.length)} of ${n(state.total)} properties, as many as Rightmove lists for one search. Narrow the search to see the rest.`);
+    } else {
+      more.replaceChildren(`That’s all ${n(state.props.length)} properties.`);
+    }
   }
 
   // ---------------------------------------------------------------------------
@@ -135,8 +214,9 @@
     el.classList.toggle('is-loading', state.status === 'loading');
     if (state.status === 'ready' && el.rendered !== state.props) {
       for (const old of el.children) landObserver.unobserve(old);
-      el.replaceChildren(...state.props.map(card));
+      el.replaceChildren(...state.props.map(card), more);
       el.rendered = state.props;
+      renderMore();
     }
   }
 
