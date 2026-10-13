@@ -243,7 +243,8 @@
       });
   }
 
-  // Above the photos: the estate agent and the land in acres.
+  // Above the photos: the estate agent, the land in acres, and whether the listing says open
+  // plan or modern.
   function galleryInfo(pd, listing) {
     if (!pd && !listing) return null;
     const field = (label, value) =>
@@ -251,7 +252,14 @@
     const agent = agentName(pd?.customer || listing?.customer);
     return h('div', { class: 'rmx-gallery__info' },
       agent && field('Agent', h('strong', null, agent)),
-      field('Land', acresBadges(RMX.propertyAcres(pd, listing))));
+      field('Land', acresBadges(RMX.propertyAcres(pd, listing))),
+      RMX.propertyFeatures(pd, listing).map(({ name, mentions }) => field(name, mentionBadge(mentions))));
+  }
+
+  // Highlighted if the listing mentions a feature (hover for the sentences), muted if not.
+  function mentionBadge(mentions) {
+    if (!mentions.length) return h('span', { class: 'rmx-acres-none' }, 'Not mentioned');
+    return h('span', { class: 'rmx-acres', title: mentions.join('\n\n') }, 'Mentioned');
   }
 
   const agentName = customer => customer?.branchDisplayName || customer?.companyName || customer?.brandTradingName;

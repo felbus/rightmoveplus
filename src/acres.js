@@ -1,6 +1,7 @@
 // Finds the land a listing's text mentions in acres: "about 2.65 acres", "a two-acre plot",
 // "half an acre", "1½ acres", "1-2 acres". Rightmove's own size in acres is the floor area
-// converted, so the text is the only place the land is given.
+// converted, so the text is the only place the land is given. Also finds the sentences that
+// call a property open plan or modern.
 (() => {
   'use strict';
 
@@ -66,14 +67,41 @@
     return [...found].map(([amount, context]) => ({ amount, context }));
   }
 
-  // The acres in a property's key features, search summary and description. `pd` is the
-  // property page's data and `listing` its search result; either may be missing.
-  function propertyAcres(pd, listing) {
-    return findAcres([
+  // Every distinct sentence in `texts` that matches `pattern`, cut down around the match.
+  function findMentions(texts, pattern) {
+    const found = new Set();
+    for (const text of texts) {
+      if (!text) continue;
+      for (const sentence of text.split(SENTENCE)) {
+        const m = pattern.exec(sentence);
+        if (m) found.add(excerpt(sentence, m.index, m.index + m[0].length));
+      }
+    }
+    return [...found];
+  }
+
+  // A property's key features, search summary and description. `pd` is the property page's
+  // data and `listing` its search result; either may be missing.
+  function propertyTexts(pd, listing) {
+    return [
       ...(pd?.keyFeatures || listing?.keyFeatures?.map(f => f.description) || []),
       listing?.summary, // can differ from the page's description
       pd?.text?.description && htmlText(pd.text.description),
-    ]);
+    ];
+  }
+
+  const propertyAcres = (pd, listing) => findAcres(propertyTexts(pd, listing));
+
+  // "Open plan", "open-plan", "openplan"; "modern" but not "modernised" or "modernisation".
+  const FEATURES = [
+    ['Open plan', /\bopen[\s\-–]?plan\b/i],
+    ['Modern', /\bmodern\b/i],
+  ];
+
+  // Each feature with the sentences that mention it (none if it isn't mentioned).
+  function propertyFeatures(pd, listing) {
+    const texts = propertyTexts(pd, listing);
+    return FEATURES.map(([name, pattern]) => ({ name, mentions: findMentions(texts, pattern) }));
   }
 
   // A listing description's HTML as plain text, a line per paragraph or line break.
@@ -81,5 +109,5 @@
     return new DOMParser().parseFromString(html.replace(/<(br|\/p|\/li|\/h\d)\b/gi, '\n$&'), 'text/html').body.textContent;
   }
 
-  Object.assign(globalThis.RMX, { propertyAcres });
+  Object.assign(globalThis.RMX, { propertyAcres, propertyFeatures });
 })();
