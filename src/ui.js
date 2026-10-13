@@ -257,26 +257,33 @@
   const agentName = customer => customer?.branchDisplayName || customer?.companyName || customer?.brandTradingName;
 
   // Elements for the land: highlighted amounts in acres (hover one for the sentence it came
-  // from), or a note that there are none. `checking`: the description hasn't been read yet.
-  function acresBadges(acres, checking) {
+  // from), or a note that there are none. `checking`: the description hasn't been read yet;
+  // `failed`: why it couldn't be.
+  function acresBadges(acres, checking, failed) {
     const amounts = acres.filter(a => a.amount);
     if (amounts.length) return amounts.map(a => h('span', { class: 'rmx-acres', title: a.context }, a.amount));
     if (checking) return [h('span', { class: 'rmx-acres-none' }, 'Checking details…')];
+    if (failed) return [unreadNote(failed)];
     if (acres.length) return [h('span', { class: 'rmx-acres rmx-acres--mention', title: acres[0].context }, '“Acre” mentioned, no amount')];
     return [h('span', { class: 'rmx-acres-none' }, 'No acres mentioned')];
   }
 
   // Elements for the style: the features the listing mentions ("Open plan", "Modern"),
   // highlighted (hover one for the sentences), or a note that there are none.
-  function featureBadges(features, checking) {
+  function featureBadges(features, checking, failed) {
     const found = features.filter(f => f.mentions.length);
     if (found.length) return found.map(f => h('span', { class: 'rmx-acres', title: f.mentions.join('\n\n') }, f.name));
     if (checking) return [h('span', { class: 'rmx-acres-none' }, 'Checking details…')];
+    if (failed) return [unreadNote(failed)];
     return [h('span', { class: 'rmx-acres-none' }, 'Not mentioned')];
   }
 
   // Every photo, then the floorplans, in one column that scrolls. `info` goes in the strip
   // above it.
+  // The listing's page couldn't be read, so only its search summary was: hover for why.
+  const unreadNote = failed =>
+    h('span', { class: 'rmx-acres-none rmx-acres--failed', title: `Couldn’t read the listing’s page: ${failed}` }, 'Couldn’t read listing');
+
   function buildGallery(pane, sets, info) {
     const shots = [];
     const shotsOf = (set, items) => items.map((item, i) => {

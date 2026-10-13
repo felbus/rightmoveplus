@@ -22,8 +22,42 @@ html.rmx-grid-on .wrapper:has(#l-searchResults) {
 
 .rmx-toolbar {
   display: inline-flex;
+  flex-wrap: wrap;
   align-items: center;
+  gap: 8px 24px;
   margin-left: auto;
+}
+
+/* Land filter: least land, in acres. */
+.rmx-landfilter {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--rmx-ink);
+  font-size: 13px;
+}
+.rmx-landfilter[hidden] {
+  display: none;
+}
+.rmx-landfilter__label {
+  color: var(--rmx-muted);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+.rmx-landfilter input {
+  width: 180px;
+  margin: 0;
+  accent-color: var(--rmx-accent-ink);
+  cursor: pointer;
+}
+.rmx-landfilter__value {
+  min-width: 118px;
+  font-weight: 700;
+}
+.rmx-landfilter__count {
+  color: var(--rmx-muted);
 }
 
 .rmx-grid {
@@ -72,6 +106,9 @@ html.rmx-grid-on :has(#rmx-grid) ~ * {
   overflow: hidden;
   color: var(--rmx-ink);
   transition: box-shadow 0.15s, transform 0.15s;
+}
+.rmx-card[hidden] {
+  display: none;
 }
 .rmx-card:hover {
   box-shadow: 0 10px 28px rgba(38, 38, 55, 0.14);

@@ -9,6 +9,9 @@
   const { TABS, h, icon, segmented, idFromHref, mediaUrl, openModal, agentName, acresBadges, featureBadges, propertyAcres, propertyFeatures } = RMX;
 
   const VIEW_KEY = 'rmx:view';
+  const LAND_KEY = 'rmx:minAcres';
+  // The land slider's stops, in acres; 0 is any.
+  const LAND_STEPS = [0, 0.1, 0.25, 0.5, 0.75, 1, 1.5, 2, 3, 5, 10, 20, 50];
   const SEARCH_API = '/api/property-search/listing/search';
 
   const initialUrl = location.href;
@@ -16,6 +19,7 @@
 
   const state = {
     view: localStorage.getItem(VIEW_KEY) === 'list' ? 'list' : 'grid',
+    minAcres: LAND_STEPS.find(a => a > 0 && a === Number(localStorage.getItem(LAND_KEY))) || 0,
     url: null,          // URL the current results were requested for
     status: 'idle',     // idle | loading | ready | error
     props: [],          // results shown in the grid, in page order
@@ -41,10 +45,11 @@
   }
 
   // Pagination and filters are client-side: the page fetches the same JSON API with the
-  // URL's query string, so we do too. The API insists on a channel. `index` asks for a later
-  // page.
+  // URL's query string, so we do too. The API insists on a channel. The grid scrolls on from
+  // the first page whichever page the URL is on; `index` asks for a later one.
   function apiQuery(index) {
     const q = new URLSearchParams(location.search);
+    q.delete('index');
     if (!q.has('channel')) {
       const channel = state.channel || (/to-rent/.test(location.pathname) ? 'RENT' : 'BUY');
       q.set('channel', channel);
@@ -60,7 +65,7 @@
     state.more?.abort();
     state.more = null;
     renderMore();
-    if (url === initialUrl && initialData) {
+    if (url === initialUrl && initialData && !Number(initialData.searchParameters?.index)) {
       setResults(initialData);
       return;
     }
@@ -102,6 +107,7 @@
   // to it. The URL stays on the page it was on.
   async function loadMore() {
     if (state.status !== 'ready' || state.next == null || state.more || state.moreFailed) return;
+    if (filtering() && landPending()) return; // until the cards so far have been checked
     const url = state.url;
     const request = (state.more = new AbortController());
     renderMore();
@@ -121,6 +127,7 @@
       state.props.push(...added);
       state.next = data.pagination?.next ?? null;
       more.before(...added.map(card));
+      checkAllLand();
     } catch (err) {
       if (err.name === 'AbortError' || state.url !== url) return;
       console.warn('[Rightmove Plus] Could not load more results.', err);
@@ -155,13 +162,74 @@
     } else if (state.moreFailed) {
       more.replaceChildren('Couldn’t load more properties.',
         h('button', { class: 'rmx-btn', type: 'button', onclick: () => { state.moreFailed = false; loadMore(); } }, 'Try again'));
+    } else if (filtering() && landPending()) {
+      more.replaceChildren(h('span', { class: 'rmx-spinner' }), 'Checking listings for land…');
     } else if (state.next != null) {
       more.replaceChildren();
-    } else if (state.total > state.props.length + 25) { // Rightmove stops after 42 pages
-      more.replaceChildren(`Showing the first ${n(state.props.length)} of ${n(state.total)} properties, as many as Rightmove lists for one search. Narrow the search to see the rest.`);
     } else {
-      more.replaceChildren(`That’s all ${n(state.props.length)} properties.`);
+      const matches = filtering() && ` ${n(matchCount())} with ${acresText(state.minAcres)}.`;
+      const shown = state.props.length;
+      if (state.total > 1008 && shown < state.total) { // Rightmove stops after 42 pages of 24
+        more.replaceChildren(`That’s the first ${n(shown)} of ${n(state.total)} properties, as many as Rightmove lists for one search.${matches || ''} Narrow the search to see the rest.`);
+      } else if (shown < state.total - 1) {
+        more.replaceChildren(`That’s all Rightmove returned: ${n(shown)} different properties of the ${n(state.total)} it counts, because its pages repeat some listings.${matches || ''} Sorting by Newest instead of Keyword Match lists them all.`);
+      } else {
+        more.replaceChildren(`That’s all ${n(shown)} properties.${matches || ''}`);
+      }
     }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Land filter: a slider that hides cards with less land than it's set to. The acres are
+  // mostly in the full description, so while it's set every card's property page is fetched,
+  // not just those near the screen, and the next page waits until they have been.
+
+  const filtering = () => state.view === 'grid' && state.minAcres > 0;
+  const acresText = a => `${a === 1 ? '1 acre' : `${a} acres`} or more`;
+  const matchCount = () => gridEl().querySelectorAll('.rmx-card:not([hidden])').length;
+
+  const landFilter = {};
+  landFilter.value = h('span', { class: 'rmx-landfilter__value' });
+  landFilter.count = h('span', { class: 'rmx-landfilter__count' });
+  landFilter.input = h('input', {
+    type: 'range', min: 0, max: LAND_STEPS.length - 1, step: 1,
+    value: LAND_STEPS.indexOf(state.minAcres), 'aria-label': 'Least land, in acres',
+    oninput: e => setMinAcres(LAND_STEPS[e.target.value]),
+  });
+  landFilter.el = h('div', { class: 'rmx-landfilter' },
+    h('span', { class: 'rmx-landfilter__label' }, 'Land'), landFilter.input, landFilter.value, landFilter.count);
+
+  function setMinAcres(acres) {
+    state.minAcres = acres;
+    localStorage.setItem(LAND_KEY, String(acres));
+    for (const el of gridEl().querySelectorAll('.rmx-card')) filterCard(el);
+    checkAllLand();
+    showFilterCount();
+    renderMore();
+    watchMore();
+  }
+
+  // A card's land is its largest amount in acres; until its description has been read, that
+  // is from the search result alone.
+  function filterCard(el) {
+    el.hidden = filtering() && !(el.rmxAcres >= state.minAcres);
+  }
+
+  // Text is only set when it changes: setting it at all is a mutation, and mutations sync().
+  let countQueued = false;
+  function showFilterCount() {
+    if (countQueued) return;
+    countQueued = true;
+    requestAnimationFrame(() => {
+      countQueued = false;
+      const loaded = state.props.length;
+      const set = (el, text) => { if (el.textContent !== text) el.textContent = text; };
+      set(landFilter.value, state.minAcres ? acresText(state.minAcres) : 'Any');
+      const unread = filtering() ? [...gridEl().querySelectorAll('.rmx-card')].filter(c => c.rmxFailed).length : 0;
+      set(landFilter.count, filtering() && loaded
+        ? `${matchCount().toLocaleString('en-GB')} of ${loaded.toLocaleString('en-GB')} loaded${landPending() ? ', checking…' : ''}${unread ? ` (${unread.toLocaleString('en-GB')} couldn’t be read)` : ''}`
+        : '');
+    });
   }
 
   // ---------------------------------------------------------------------------
@@ -196,7 +264,11 @@
         state.view = view;
         localStorage.setItem(VIEW_KEY, view);
         sync();
-      }));
+        setMinAcres(state.minAcres); // the filter only applies to the grid
+      }),
+      landFilter.el);
+    landFilter.el.hidden = state.view !== 'grid';
+    showFilterCount();
     const header = list.parentElement.querySelector('[class*="ResultsHeader_resultsHeader"]');
     if (header) {
       if (toolbar.parentElement !== header) header.append(toolbar);
@@ -216,7 +288,9 @@
       for (const old of el.children) landObserver.unobserve(old);
       el.replaceChildren(...state.props.map(card), more);
       el.rendered = state.props;
+      checkAllLand();
       renderMore();
+      showFilterCount();
     }
   }
 
@@ -235,11 +309,15 @@
     const agent = agentName(p.customer);
     const land = h('div', { class: 'rmx-card__row' });
     const style = h('div', { class: 'rmx-card__row' });
-    const showLand = (pd, checking) => {
-      land.replaceChildren(h('span', { class: 'rmx-card__label' }, 'Land'), ...acresBadges(propertyAcres(pd, p), checking));
-      style.replaceChildren(h('span', { class: 'rmx-card__label' }, 'Style'), ...featureBadges(propertyFeatures(pd, p), checking));
+    const showLand = (pd, checking, failed) => {
+      const acres = propertyAcres(pd, p);
+      land.replaceChildren(h('span', { class: 'rmx-card__label' }, 'Land'), ...acresBadges(acres, checking, failed));
+      style.replaceChildren(h('span', { class: 'rmx-card__label' }, 'Style'), ...featureBadges(propertyFeatures(pd, p), checking, failed));
+      el.rmxAcres = Math.max(0, ...acres.map(a => a.value));
+      el.rmxFailed = Boolean(failed);
+      filterCard(el);
+      showFilterCount();
     };
-    showLand(null, true);
 
     let prefetch;
     const el = h('article', {
@@ -278,35 +356,70 @@
           h('span', { class: 'rmx-card__label' }, 'Agent'), h('span', null, agent)),
         h('div', { class: 'rmx-card__meta' }, update)),
       actionBar());
-    landChecks.set(el, () => RMX.fetchProperty(id).then(pd => showLand(pd), () => showLand(null)));
+    showLand(null, true);
+    landChecks.set(el, () => RMX.fetchProperty(id).then(pd => showLand(pd), err => {
+      warnUnread(id, err);
+      showLand(null, false, err.message || String(err));
+    }));
     landObserver.observe(el);
     return el;
   }
 
   // Acres and style on the cards. The search result's key features and summary are read
   // straight away; the full description is on the property page, fetched a few at a time as
-  // cards come near the screen.
+  // cards come near the screen (or all of them, while the land filter is set).
   const landChecks = new WeakMap(); // card → fetches its property page and shows the acres and style
-  const landQueue = [];
+  const landQueue = []; // { cardEl, check }
   let landFetches = 0;
   const landObserver = new IntersectionObserver(entries => {
-    for (const { target, isIntersecting } of entries) {
-      if (!isIntersecting) continue;
-      landObserver.unobserve(target);
-      landQueue.push(target);
-    }
+    for (const { target, isIntersecting } of entries) if (isIntersecting) queueLand(target);
     checkLand();
   }, { rootMargin: '600px 0px' });
 
+  const landPending = () => landQueue.length + landFetches > 0;
+
+  let warnedUnread = false;
+  function warnUnread(id, err) {
+    if (warnedUnread) return;
+    warnedUnread = true;
+    console.warn(`[Rightmove Plus] Couldn’t read property ${id}’s page, so its land and style come from the search summary only.`, err);
+  }
+
+  function queueLand(cardEl) {
+    const check = landChecks.get(cardEl);
+    if (!check) return; // queued already
+    landChecks.delete(cardEl);
+    landObserver.unobserve(cardEl);
+    landQueue.push({ cardEl, check });
+  }
+
+  // While filtering, every card; otherwise the cards not near the screen go back to waiting.
+  function checkAllLand() {
+    if (filtering()) {
+      for (const cardEl of gridEl().querySelectorAll('.rmx-card')) queueLand(cardEl);
+    } else {
+      for (const { cardEl, check } of landQueue.splice(0)) {
+        landChecks.set(cardEl, check);
+        landObserver.observe(cardEl);
+      }
+    }
+    checkLand();
+  }
+
   function checkLand() {
     while (landFetches < 4 && landQueue.length) {
-      const cardEl = landQueue.shift();
+      const { cardEl, check } = landQueue.shift();
       if (!gridEl().contains(cardEl)) continue; // results have changed since
       landFetches++;
-      landChecks.get(cardEl)().finally(() => {
+      check().finally(() => {
         landFetches--;
         checkLand();
       });
+    }
+    if (filtering()) {
+      showFilterCount();
+      renderMore();
+      if (!landPending()) watchMore(); // the next page, if the end is near
     }
   }
 

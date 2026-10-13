@@ -31,13 +31,15 @@
       }, 0);
   }
 
-  function amountLabel([, low, high]) {
+  // An amount as a label ("2.5 acres", "1–2 acres") and its value in acres (the larger end of
+  // a range).
+  function amountOf([, low, high]) {
     const lo = toNumber(low);
     const hi = high && toNumber(high);
     const n = v => v.toLocaleString('en-GB', { maximumFractionDigits: 2 });
     if (!(lo > 0)) return null;
-    if (hi > lo) return `${n(lo)}–${n(hi)} acres`;
-    return `${n(lo)} ${lo === 1 ? 'acre' : 'acres'}`;
+    if (hi > lo) return { label: `${n(lo)}–${n(hi)} acres`, value: hi };
+    return { label: `${n(lo)} ${lo === 1 ? 'acre' : 'acres'}`, value: lo };
   }
 
   // The sentence around a mention, cut down to about 160 characters.
@@ -49,9 +51,9 @@
     return (from > 0 ? '…' : '') + sentence.slice(from, to < 0 ? undefined : to).trim() + (to < 0 ? '' : '…');
   }
 
-  // Every distinct amount in acres in `texts` (plain text, in the order given), each with the
-  // sentence it came from. A mention with no amount ("acres of woodland", "Acre Lane") is
-  // returned once, with `amount: null`.
+  // Every distinct amount in acres in `texts` (plain text, in the order given), as its label
+  // and value, with the sentence it came from. A mention with no amount ("acres of woodland",
+  // "Acre Lane") is returned once, with `amount: null`.
   function findAcres(texts) {
     const found = new Map();
     for (const text of texts) {
@@ -59,12 +61,12 @@
       for (const sentence of text.split(SENTENCE)) {
         for (const m of sentence.matchAll(ACRE)) {
           const quantity = AMOUNT.exec(sentence.slice(0, m.index));
-          const amount = quantity ? amountLabel(quantity) : null;
-          if (!found.has(amount)) found.set(amount, excerpt(sentence, m.index, m.index + m[0].length));
+          const { label = null, value = 0 } = (quantity && amountOf(quantity)) || {};
+          if (!found.has(label)) found.set(label, { amount: label, value, context: excerpt(sentence, m.index, m.index + m[0].length) });
         }
       }
     }
-    return [...found].map(([amount, context]) => ({ amount, context }));
+    return [...found.values()];
   }
 
   // Every distinct sentence in `texts` that matches `pattern`, cut down around the match.
