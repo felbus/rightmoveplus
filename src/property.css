@@ -1,0 +1,16 @@
+/* Property page: the Gallery / Floorplan / Map bar under the photos. */
+.rmx-actions--property {
+  margin: 12px 16px 0;
+  border: 1px solid var(--rmx-line);
+  border-radius: 8px;
+  overflow: hidden;
+  background: #fff;
+}
+.rmx-actions--property button {
+  padding: 12px 4px;
+  font-size: 15px;
+}
+.rmx-actions__count {
+  color: var(--rmx-muted);
+  font-weight: 500;
+}

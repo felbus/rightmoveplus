@@ -1,0 +1,32 @@
+/* Adverts. Ad network requests are blocked by rules/ads.json; this collapses the empty
+   slots and the house ads Rightmove serves itself. Applies to every page and frame. */
+[id^="google_ads_iframe"],
+[id^="div-gpt-ad"],
+[data-fuse],
+.fuse-slot,
+iframe[src*="googlesyndication.com"],
+iframe[src*="doubleclick.net"],
+iframe[src*="amazon-adsystem.com"],
+[id^="interstititalSlot"],
+[class*="ResultsList_feedAdWrapper"],
+[id*="SoldByMeInterstitial"],
+[class*="SoldByMeInterstitial"],
+[class*="SidebarAdvert_"],
+[class*="NativeAdvert_"],
+/* Agent "brand edition" banners on property pages. */
+a:has(> img[src*="/partner-branchprofile/"]),
+div:has(> a:only-child > img[src*="/partner-branchprofile/"]),
+/* "Featured property": a paid slot pinned above the results regardless of sort order. */
+[data-testid^="propertyCard-vrt-"]:has([class*="PropertyCard_featuredBannerTopOfCard"]),
+/* Wrappers left holding nothing but ad slots. */
+div:has(> [data-fuse]):not(:has(> :not([data-fuse]))) {
+  display: none !important;
+}
+
+/* A property page shown inside the Rightmove Plus details modal. */
+html.rmx-embedded #seo-globalHeader,
+html.rmx-embedded #globalFooter,
+html.rmx-embedded .skipToContent,
+html.rmx-embedded #onetrust-consent-sdk {
+  display: none !important;
+}

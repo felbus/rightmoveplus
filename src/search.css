@@ -1,0 +1,234 @@
+/* ---------------------------------------------------------------------------
+   Grid mode: hide Rightmove's list and sidebar and give the grid the full width. */
+
+html:not(.rmx-grid-on) #rmx-grid,
+html.rmx-grid-on #l-searchResults > :not([class*="KeywordSearch_"]),
+html.rmx-grid-on [class*="SidebarBase_sidebarBase"] {
+  display: none !important;
+}
+html.rmx-grid-on .wrapper:has(#l-searchResults),
+html.rmx-grid-on [class*="MainContainer_container"],
+html.rmx-grid-on [class*="ResultsList_resultsColumn"] {
+  max-width: none !important;
+  width: auto !important;
+  flex: 1 1 auto !important;
+}
+html.rmx-grid-on .wrapper:has(#l-searchResults) {
+  max-width: 1760px !important;
+  margin-inline: auto !important;
+  padding-inline: 24px !important;
+}
+
+.rmx-toolbar {
+  display: inline-flex;
+  align-items: center;
+  margin-left: auto;
+}
+
+.rmx-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(290px, 1fr));
+  gap: 20px;
+  margin: 16px 0 28px;
+  transition: opacity 0.15s;
+}
+.rmx-grid.is-loading {
+  opacity: 0.4;
+  pointer-events: none;
+}
+
+.rmx-card {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  background: #fff;
+  border: 1px solid var(--rmx-line);
+  border-radius: 12px;
+  overflow: hidden;
+  color: var(--rmx-ink);
+  transition: box-shadow 0.15s, transform 0.15s;
+}
+.rmx-card:hover {
+  box-shadow: 0 10px 28px rgba(38, 38, 55, 0.14);
+  transform: translateY(-2px);
+}
+
+.rmx-card__media {
+  position: relative;
+  display: block;
+  aspect-ratio: 3 / 2;
+  background: var(--rmx-soft);
+  overflow: hidden;
+}
+.rmx-card__media img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.3s;
+}
+.rmx-card:hover .rmx-card__media img {
+  transform: scale(1.03);
+}
+.rmx-card__noimg {
+  display: grid;
+  place-items: center;
+  height: 100%;
+  color: var(--rmx-muted);
+  font-size: 13px;
+}
+
+.rmx-badges {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.rmx-badge {
+  padding: 3px 8px;
+  border-radius: 6px;
+  background: #fff;
+  color: var(--rmx-ink);
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.4;
+}
+.rmx-badge--status {
+  background: var(--rmx-ink);
+  color: #fff;
+}
+.rmx-badge--reduced {
+  background: #ffe5e0;
+  color: #a3261a;
+}
+.rmx-badge--new {
+  background: var(--rmx-accent);
+  color: #043b31;
+}
+
+.rmx-pills {
+  position: absolute;
+  right: 10px;
+  bottom: 10px;
+  display: flex;
+  gap: 6px;
+}
+.rmx-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 7px;
+  border-radius: 6px;
+  background: rgba(10, 10, 20, 0.64);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.rmx-card__body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 3px;
+  padding: 12px 14px 0;
+}
+.rmx-card__price {
+  font-size: 20px;
+  font-weight: 700;
+  line-height: 1.3;
+}
+.rmx-card__qualifier {
+  margin-left: 8px;
+  color: var(--rmx-muted);
+  font-size: 12px;
+  font-weight: 500;
+}
+.rmx-card__title {
+  overflow: hidden;
+  color: var(--rmx-ink) !important;
+  font-size: 15px;
+  font-weight: 600;
+  text-decoration: none !important;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.rmx-card__title:hover {
+  text-decoration: underline !important;
+}
+.rmx-card__address {
+  overflow: hidden;
+  color: var(--rmx-muted);
+  font-size: 14px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.rmx-facts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+  margin: 6px 0 0;
+  padding: 0;
+  list-style: none;
+  font-size: 13px;
+}
+.rmx-facts li {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+.rmx-facts__tenure {
+  color: var(--rmx-muted);
+}
+/* Land (acres) and Agent. */
+.rmx-card__row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 6px;
+  margin-top: 6px;
+  font-size: 13px;
+  line-height: 1.5;
+}
+.rmx-card__label {
+  flex: none;
+  width: 48px;
+  color: var(--rmx-muted);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+.rmx-card__agent {
+  flex-wrap: nowrap;
+  margin-top: 4px;
+  font-weight: 600;
+}
+.rmx-card__agent > :last-child {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rmx-card__meta {
+  margin-top: auto;
+  padding: 10px 0 12px;
+  overflow: hidden;
+  color: var(--rmx-muted);
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* List view: the buttons under Rightmove's own cards. */
+.rmx-actions--native {
+  margin-top: 8px;
+  border: 1px solid var(--rmx-line);
+  border-radius: 8px;
+  overflow: hidden;
+  background: #fff;
+}
+
