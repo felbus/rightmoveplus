@@ -1,7 +1,7 @@
 // Finds the land a listing's text mentions in acres: "about 2.65 acres", "a two-acre plot",
 // "half an acre", "1½ acres", "1-2 acres". Rightmove's own size in acres is the floor area
 // converted, so the text is the only place the land is given. Also finds the sentences that
-// call a property open plan or modern.
+// call a property open plan or modern, and services that need doing by hand (oil, septic tank).
 (() => {
   'use strict';
 
@@ -106,10 +106,45 @@
     return FEATURES.map(([name, pattern]) => ({ name, mentions: findMentions(texts, pattern) }));
   }
 
+  // Services that need doing by hand: oil or LPG to order in, a septic tank, cesspit or
+  // treatment plant to have emptied, a private water supply to look after. Each is found in
+  // the listing's text (`text`) or in the utilities on its page (`value`, matched against an
+  // entry of `features[field]` such as { alias: 'private_sewerage', displayText: 'Private supply' }).
+  // "Oil" needs a heating word next to it, so "oiled oak floors" doesn't count.
+  const MANUAL = [
+    { name: 'Oil', field: 'heating', value: /\boil\b/i,
+      text: /\boil[\s\-–]*(?:fired|central|heating|boiler|tank|range|aga|rayburn|stove|supply)|\b(?:heat\w*|boiler|aga|rayburn)\b[^.]{0,40}?\boil\b/i },
+    { name: 'LPG', field: 'heating', value: /\b(?:lpg|calor|propane|bottled)\b/i,
+      text: /\b(?:lpg|calor|propane)\b|\bbottled gas\b/i },
+    { name: 'Septic tank', field: 'sewerage', value: /sc?eptic/i, text: /\bsc?eptic\b/i },
+    { name: 'Cesspit', field: 'sewerage', value: /cess/i, text: /\bcess[\s-]?(?:pit|pool)s?\b/i },
+    { name: 'Treatment plant', field: 'sewerage', value: /treatment/i, text: /\btreatment plants?\b/i },
+    // Left out when the kind of drainage is named.
+    { name: 'Private drainage', field: 'sewerage', value: /private/i, vague: true,
+      text: /\bprivate (?:drainage|drains|sewerage|sewage)\b|\bnon[\s-]mains (?:drainage|sewerage)\b|\bklargester\b/i },
+    { name: 'Private water', field: 'water', value: /private|bore|spring|well/i,
+      text: /\bprivate water\b|\bbore[\s-]?holes?\b|\b(?:spring|well)(?:[\s-]fed)? water\b/i },
+  ];
+
+  // Each manual service the listing mentions, with where it's mentioned: a sentence, or the
+  // utilities entry ("Heating: Oil, in the listing’s utilities").
+  function propertyManual(pd, listing) {
+    const texts = propertyTexts(pd, listing);
+    const found = MANUAL.map(({ name, field, value, text, vague }) => ({
+      name, field, vague,
+      mentions: [
+        ...(pd?.features?.[field] || []).filter(f => value.test(`${f.alias} ${f.displayText}`))
+          .map(f => `${field[0].toUpperCase()}${field.slice(1)}: ${f.displayText}, in the listing’s utilities`),
+        ...findMentions(texts, text),
+      ],
+    })).filter(m => m.mentions.length);
+    return found.filter(m => !m.vague || !found.some(o => o.field === m.field && !o.vague));
+  }
+
   // A listing description's HTML as plain text, a line per paragraph or line break.
   function htmlText(html) {
     return new DOMParser().parseFromString(html.replace(/<(br|\/p|\/li|\/h\d)\b/gi, '\n$&'), 'text/html').body.textContent;
   }
 
-  Object.assign(globalThis.RMX, { propertyAcres, propertyFeatures });
+  Object.assign(globalThis.RMX, { propertyAcres, propertyFeatures, propertyManual });
 })();

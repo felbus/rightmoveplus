@@ -240,8 +240,8 @@
       });
   }
 
-  // Above the photos: the estate agent, the land in acres, and whether the listing says open
-  // plan or modern (Style), as on the grid cards.
+  // Above the photos: the estate agent, the land in acres, whether the listing says open
+  // plan or modern (Style), and services that need doing by hand (Manual), as on the grid cards.
   function galleryInfo(pd, listing) {
     if (!pd && !listing) return [];
     const field = (label, value) =>
@@ -251,6 +251,7 @@
       agent && field('Agent', h('strong', null, agent)),
       field('Land', acresBadges(RMX.propertyAcres(pd, listing))),
       field('Style', featureBadges(RMX.propertyFeatures(pd, listing))),
+      field('Manual', manualBadges(RMX.propertyManual(pd, listing))),
     ];
   }
 
@@ -269,14 +270,18 @@
   }
 
   // Elements for the style: the features the listing mentions ("Open plan", "Modern"),
-  // highlighted (hover one for the sentences), or a note that there are none.
-  function featureBadges(features, checking, failed) {
+  // highlighted (hover one for the sentences), or a note that there are none. `className`
+  // is added to each highlight.
+  function featureBadges(features, checking, failed, className = '') {
     const found = features.filter(f => f.mentions.length);
-    if (found.length) return found.map(f => h('span', { class: 'rmx-acres', title: f.mentions.join('\n\n') }, f.name));
+    if (found.length) return found.map(f => h('span', { class: `rmx-acres ${className}`.trim(), title: f.mentions.join('\n\n') }, f.name));
     if (checking) return [h('span', { class: 'rmx-acres-none' }, 'Checking details…')];
     if (failed) return [unreadNote(failed)];
     return [h('span', { class: 'rmx-acres-none' }, 'Not mentioned')];
   }
+
+  // Elements for the manual services the listing mentions ("Oil", "Septic tank"), in red.
+  const manualBadges = (manual, checking, failed) => featureBadges(manual, checking, failed, 'rmx-acres--manual');
 
   // Every photo, then the floorplans, in one column that scrolls. `info` goes in the strip
   // above it.
@@ -343,5 +348,5 @@
 
   document.addEventListener('keydown', onKey, true);
 
-  Object.assign(globalThis.RMX, { TABS, h, icon, segmented, idFromHref, mediaUrl, openModal, agentName, acresBadges, featureBadges });
+  Object.assign(globalThis.RMX, { TABS, h, icon, segmented, idFromHref, mediaUrl, openModal, agentName, acresBadges, featureBadges, manualBadges });
 })();

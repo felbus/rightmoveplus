@@ -7,6 +7,7 @@
   --rmx-soft: #f4f5f8;
   --rmx-accent: #00deb6;
   --rmx-accent-ink: #00745f;
+  --rmx-warn: #d32f2f;
 }
 
 .rmx-icon {
@@ -90,7 +91,8 @@
   color: var(--rmx-accent-ink);
 }
 
-/* Land in acres and style (open plan, modern), on the grid cards and in the gallery. */
+/* Land in acres, style (open plan, modern) and manual services (oil, septic tank), on the
+   grid cards and in the gallery. */
 .rmx-acres {
   padding: 2px 9px;
   border-radius: 999px;
@@ -104,6 +106,10 @@
   background: none;
   box-shadow: inset 0 0 0 1px var(--rmx-accent-ink);
   color: var(--rmx-accent-ink);
+}
+.rmx-acres--manual {
+  background: var(--rmx-warn);
+  color: #fff;
 }
 .rmx-acres-none {
   color: var(--rmx-muted);

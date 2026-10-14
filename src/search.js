@@ -6,7 +6,7 @@
   // Search pages are a Next.js app; property pages are not (see property.js).
   if (window.top !== window || !document.getElementById('__NEXT_DATA__')) return;
 
-  const { TABS, h, icon, segmented, idFromHref, mediaUrl, openModal, agentName, acresBadges, featureBadges, propertyAcres, propertyFeatures } = RMX;
+  const { TABS, h, icon, segmented, idFromHref, mediaUrl, openModal, agentName, acresBadges, featureBadges, manualBadges, propertyAcres, propertyFeatures, propertyManual } = RMX;
 
   const VIEW_KEY = 'rmx:view';
   const LAND_KEY = 'rmx:minAcres';
@@ -309,10 +309,12 @@
     const agent = agentName(p.customer);
     const land = h('div', { class: 'rmx-card__row' });
     const style = h('div', { class: 'rmx-card__row' });
+    const manual = h('div', { class: 'rmx-card__row' });
     const showLand = (pd, checking, failed) => {
       const acres = propertyAcres(pd, p);
       land.replaceChildren(h('span', { class: 'rmx-card__label' }, 'Land'), ...acresBadges(acres, checking, failed));
       style.replaceChildren(h('span', { class: 'rmx-card__label' }, 'Style'), ...featureBadges(propertyFeatures(pd, p), checking, failed));
+      manual.replaceChildren(h('span', { class: 'rmx-card__label' }, 'Manual'), ...manualBadges(propertyManual(pd, p), checking, failed));
       el.rmxAcres = Math.max(0, ...acres.map(a => a.value));
       el.rmxFailed = Boolean(failed);
       filterCard(el);
@@ -352,6 +354,7 @@
           tenure && h('li', { class: 'rmx-facts__tenure' }, tenure)),
         land,
         style,
+        manual,
         agent && h('div', { class: 'rmx-card__row rmx-card__agent', title: agent },
           h('span', { class: 'rmx-card__label' }, 'Agent'), h('span', null, agent)),
         h('div', { class: 'rmx-card__meta' }, update)),
