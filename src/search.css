@@ -244,7 +244,7 @@ html.rmx-grid-on :has(#rmx-grid) ~ * {
 .rmx-facts__tenure {
   color: var(--rmx-muted);
 }
-/* Land (acres), Style and Agent. */
+/* Land (acres), Style, Manual and Agent. */
 .rmx-card__row {
   display: flex;
   flex-wrap: wrap;
@@ -256,7 +256,7 @@ html.rmx-grid-on :has(#rmx-grid) ~ * {
 }
 .rmx-card__label {
   flex: none;
-  width: 48px;
+  width: 54px;
   color: var(--rmx-muted);
   font-size: 11px;
   font-weight: 700;
